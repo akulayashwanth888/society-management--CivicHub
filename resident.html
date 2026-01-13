@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Resident Dashboard</title>
+
+  <script src="js/utils.js"></script>
+  <script>
+    if (getRole() !== "resident") {
+      window.location.href = "login.html";
+    }
+  </script>
+</head>
+<body>
+
+<h2>Resident Dashboard</h2>
+
+<textarea id="issue" placeholder="Enter complaint"></textarea>
+<br><br>
+
+<button onclick="submitComplaint()">Submit Complaint</button>
+<br><br>
+
+<button onclick="loadMyComplaints()">View My Complaints</button>
+
+<div id="complaints"></div>
+
+<button onclick="logout()">Logout</button>
+
+<script src="js/complaints.js"></script>
+
+</body>
+</html>
