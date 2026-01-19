@@ -1,9 +1,12 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../AppContext';
 import { UserRole } from '../types';
 
-export const AuthPage: React.FC = () => {
+interface AuthPageProps {
+  onBack: () => void;
+}
+
+export const AuthPage: React.FC<AuthPageProps> = ({ onBack }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState<UserRole>(UserRole.RESIDENT);
   const [name, setName] = useState('');
@@ -30,8 +33,14 @@ export const AuthPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden border border-slate-100">
-        <div className="bg-indigo-600 p-8 text-white text-center">
-          <div className="w-12 h-12 bg-white/20 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl font-bold mb-4">C</div>
+        <div className="bg-indigo-600 p-8 text-white text-center relative">
+          <button 
+             onClick={onBack}
+             className="w-12 h-12 bg-white/20 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl font-bold mb-4 cursor-pointer hover:bg-white/30 transition-all outline-none focus:ring-4 focus:ring-white/20"
+             title="Back to Home"
+          >
+            C
+          </button>
           <h2 className="text-2xl font-bold">{isLogin ? 'Welcome Back' : 'Join Your Society'}</h2>
           <p className="text-indigo-100 mt-2">{isLogin ? 'Sign in to access your dashboard' : 'Create an account to get started'}</p>
         </div>
@@ -116,11 +125,15 @@ export const AuthPage: React.FC = () => {
           </form>
 
           <div className="mt-8 text-center text-slate-500">
-            {isLogin ? (
-              <p>Don't have an account? <button onClick={() => setIsLogin(false)} className="text-indigo-600 font-bold hover:underline">Join Now</button></p>
-            ) : (
-              <p>Already have an account? <button onClick={() => setIsLogin(true)} className="text-indigo-600 font-bold hover:underline">Login here</button></p>
-            )}
+            <p className="text-sm">
+              {isLogin ? "Don't have an account?" : "Already have an account?"} 
+              <button 
+                onClick={() => setIsLogin(!isLogin)} 
+                className="ml-2 font-bold text-indigo-600 hover:underline"
+              >
+                {isLogin ? 'Sign Up' : 'Log In'}
+              </button>
+            </p>
           </div>
         </div>
       </div>

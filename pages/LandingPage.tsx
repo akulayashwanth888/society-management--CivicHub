@@ -32,18 +32,11 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [modalType, setModalType] = useState<'privacy' | 'terms' | 'service' | null>(null);
   const [selectedService, setSelectedService] = useState<{title: string, icon: string, longDesc: string, features: string[]} | null>(null);
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+  const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     const element = document.getElementById(id);
     if (element) {
-      const headerOffset = 80;
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
+      element.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -120,15 +113,15 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     <div className="min-h-screen bg-white">
       {/* Nav */}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-40 border-b border-slate-100">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-100">C</div>
           <span className="text-2xl font-black text-slate-900 tracking-tight">CivicHub</span>
         </div>
         <div className="hidden md:flex space-x-8 text-slate-600 font-semibold">
-          <a href="#features" onClick={(e) => handleNavClick(e, 'features')} className="hover:text-indigo-600 transition-colors">Features</a>
-          <a href="#who-we-are" onClick={(e) => handleNavClick(e, 'who-we-are')} className="hover:text-indigo-600 transition-colors">About</a>
-          <a href="#pricing" onClick={(e) => handleNavClick(e, 'pricing')} className="hover:text-indigo-600 transition-colors">Pricing</a>
-          <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-indigo-600 transition-colors">Contact</a>
+          <a href="#features" onClick={(e) => handleScroll(e, 'features')} className="hover:text-indigo-600 transition-colors">Features</a>
+          <a href="#who-we-are" onClick={(e) => handleScroll(e, 'who-we-are')} className="hover:text-indigo-600 transition-colors">About</a>
+          <a href="#pricing" onClick={(e) => handleScroll(e, 'pricing')} className="hover:text-indigo-600 transition-colors">Pricing</a>
+          <a href="#contact" onClick={(e) => handleScroll(e, 'contact')} className="hover:text-indigo-600 transition-colors">Contact</a>
         </div>
         <button 
           onClick={onLogin}
@@ -139,7 +132,7 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
       </nav>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24 text-center">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 text-center">
         <div className="inline-block px-4 py-1.5 mb-6 bg-indigo-50 text-indigo-700 rounded-full text-xs font-black uppercase tracking-widest border border-indigo-100">
           Premium Community Ecosystem
         </div>
@@ -157,12 +150,13 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           >
             Start Free Trial
           </button>
-          <button 
-            onClick={(e) => handleNavClick(e as any, 'features')}
-            className="w-full sm:w-auto bg-white border-2 border-slate-200 text-slate-700 px-10 py-4 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-all"
+          <a 
+            href="#features"
+            onClick={(e) => handleScroll(e, 'features')}
+            className="w-full sm:w-auto bg-white border-2 border-slate-200 text-slate-700 px-10 py-4 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-all flex items-center justify-center"
           >
             Explore Services
-          </button>
+          </a>
         </div>
         
         <div className="relative px-4 group">
@@ -182,7 +176,7 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
       </section>
 
       {/* About Section: Who We Are */}
-      <section id="who-we-are" className="py-24 bg-white overflow-hidden scroll-mt-24">
+      <section id="who-we-are" className="pt-12 pb-24 bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative">
@@ -219,7 +213,7 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               <div className="inline-block px-3 py-1 mb-4 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-black uppercase tracking-widest border border-indigo-100">Who We Are</div>
               <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight leading-tight">Bridging the Gap Between <br /><span className="text-indigo-600">Living and Technology.</span></h2>
               <p className="text-lg text-slate-600 mb-6 leading-relaxed font-medium">
-                Founded in 2021, CivicHub emerged with a single goal: to modernize the way residential communities interact. We noticed that while everything else went digital, apartment management remained stuck in paper registers and chaotic messenger groups.
+                 CivicHub emerged with a single goal: to modernize the way residential communities interact. We noticed that while everything else went digital, apartment management remained stuck in paper registers and chaotic messenger groups.
               </p>
               <p className="text-slate-500 mb-8 leading-relaxed">
                 Our team consists of urban planners, software architects, and former society board members who understand the unique friction of collective living. We provide the tools to make governance efficient, financial records immutable, and community life more connected.
@@ -240,7 +234,7 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
       </section>
 
       {/* Features Section: Enterprise Features */}
-      <section id="features" className="bg-slate-50 py-24 scroll-mt-24">
+      <section id="features" className="bg-slate-50 py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-block px-3 py-1 mb-4 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-black uppercase tracking-widest border border-indigo-100">Capabilities</div>
           <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Enterprise Features</h2>
@@ -266,7 +260,7 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-24 bg-white scroll-mt-24">
+      <section id="pricing" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <div className="inline-block px-3 py-1 mb-4 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-black uppercase tracking-widest border border-indigo-100">Pricing</div>
@@ -295,7 +289,7 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="py-24 bg-indigo-600 text-white scroll-mt-24">
+      <section id="contact" className="py-24 bg-indigo-600 text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-black mb-6 tracking-tight">Elevate your community today.</h2>
           <p className="text-indigo-100 text-lg mb-12 max-w-3xl mx-auto font-medium">Join thousands of societies that have moved to a more efficient, digital-first management model. Our onboarding team is ready.</p>
@@ -326,9 +320,9 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           <div>
             <h4 className="font-black mb-6 text-slate-100 uppercase tracking-widest text-xs">Product</h4>
             <ul className="space-y-4 text-slate-400 font-medium">
-              <li><a href="#features" onClick={(e) => handleNavClick(e, 'features')} className="hover:text-indigo-400">Features</a></li>
-              <li><a href="#pricing" onClick={(e) => handleNavClick(e, 'pricing')} className="hover:text-indigo-400">Pricing</a></li>
-              <li><a href="#who-we-are" onClick={(e) => handleNavClick(e, 'who-we-are')} className="hover:text-indigo-400">About Us</a></li>
+              <li><a href="#features" onClick={(e) => handleScroll(e, 'features')} className="hover:text-indigo-400">Features</a></li>
+              <li><a href="#pricing" onClick={(e) => handleScroll(e, 'pricing')} className="hover:text-indigo-400">Pricing</a></li>
+              <li><a href="#who-we-are" onClick={(e) => handleScroll(e, 'who-we-are')} className="hover:text-indigo-400">About Us</a></li>
               <li><button onClick={() => setModalType('terms')} className="hover:text-indigo-400 text-left">Terms of Service</button></li>
             </ul>
           </div>
@@ -336,7 +330,7 @@ export const LandingPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           <div>
             <h4 className="font-black mb-6 text-slate-100 uppercase tracking-widest text-xs">Support</h4>
             <ul className="space-y-4 text-slate-400 font-medium">
-              <li><a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-indigo-400">Contact</a></li>
+              <li><a href="#contact" onClick={(e) => handleScroll(e, 'contact')} className="hover:text-indigo-400">Contact</a></li>
               <li><button onClick={() => setModalType('privacy')} className="hover:text-indigo-400 text-left">Privacy Policy</button></li>
             </ul>
           </div>

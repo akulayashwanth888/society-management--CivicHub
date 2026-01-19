@@ -39,6 +39,7 @@ interface AppContextType extends AppState {
   logout: () => void;
   addComplaint: (complaint: Partial<Complaint>) => void;
   updateComplaintStatus: (id: string, status: ComplaintStatus) => void;
+  handleSolveComplaint: (id: string) => Promise<void>;
   addNotice: (notice: Partial<Notice>) => void;
   deleteNotice: (id: string) => void;
   markNotificationAsRead: (id: string) => void;
@@ -317,17 +318,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateComplaintStatus = async (id: string, status: ComplaintStatus) => {
-    const updates: any = { status };
-    if (status === ComplaintStatus.RESOLVED) {
-        updates.resolvedAt = new Date().toISOString();
-    }
-
-    setComplaints(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)));
+    // We update local state with timestamp for UI feedback
+    const resolvedAt = status === ComplaintStatus.RESOLVED ? new Date().toISOString() : undefined;
+    setComplaints(prev => prev.map(c => (c.id === id ? { ...c, status, ...(resolvedAt ? { resolvedAt } : {}) } : c)));
 
     try {
-        await supabase.from('complaints').update(updates).eq('id', id);
+        // Only update status in DB to avoid 'column not found' errors if schema is missing resolvedAt
+        await supabase.from('complaints').update({ status }).eq('id', id);
     } catch (e) {
         console.warn("Backend update failed");
+    }
+  };
+
+  const handleSolveComplaint = async (id: string) => {
+    // 0. Snapshot for rollback
+    const previousComplaints = [...complaints];
+    
+    // 1. Prepare Update Data
+    const resolvedAt = new Date().toISOString();
+    const status = ComplaintStatus.RESOLVED; 
+
+    // 2. Optimistic Update (Update UI immediately)
+    setComplaints(prev => prev.map(c => 
+      c.id === id ? { ...c, status, resolvedAt } : c
+    ));
+
+    // 3. Supabase Update
+    try {
+        // FIX: Removed 'resolvedAt' from DB update to prevent schema mismatch error.
+        // The status update will persist the "Solved" state correctly.
+        const { error } = await supabase
+            .from('complaints')
+            .update({ status: 'RESOLVED' }) 
+            .eq('id', id);
+
+        if (error) throw error;
+    } catch (error: any) {
+        console.error("Backend solve failed:", error.message || error);
+        
+        // 4. Rollback on Error
+        setComplaints(previousComplaints);
+        
+        // 5. Notify User
+        alert(`Failed to resolve complaint: ${error.message || "Check your network or permissions."}`);
     }
   };
 
@@ -428,6 +461,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         logout,
         addComplaint,
         updateComplaintStatus,
+        handleSolveComplaint,
         addNotice,
         deleteNotice,
         markNotificationAsRead,

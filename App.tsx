@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AppProvider, useApp } from './AppContext';
 import { LandingPage } from './pages/LandingPage';
@@ -14,7 +13,7 @@ const AppContent: React.FC = () => {
   }
 
   if (showAuth) {
-    return <AuthPage />;
+    return <AuthPage onBack={() => setShowAuth(false)} />;
   }
 
   return <LandingPage onLogin={() => setShowAuth(true)} />;
