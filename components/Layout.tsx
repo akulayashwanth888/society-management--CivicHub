@@ -108,7 +108,9 @@ const Sidebar: React.FC<{ activeTab: string; setTab: (t: string) => void }> = ({
 
       <div className="p-4 border-t border-slate-100">
         <div className="flex items-center space-x-3 mb-6 px-2">
-          <img src={user?.avatar} alt="" className="w-10 h-10 rounded-full border-2 border-indigo-100" />
+          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+            {user?.name.charAt(0).toUpperCase()}
+          </div>
           <div className="overflow-hidden">
             <p className="text-sm font-bold text-slate-800 truncate">{user?.name}</p>
             <p className="text-xs text-slate-500 uppercase tracking-tighter">{user?.role}</p>

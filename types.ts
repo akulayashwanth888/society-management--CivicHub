@@ -41,8 +41,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  unitNumber?: string;
   phone?: string;
+  unitNumber?: string;
   avatar?: string;
 }
 
@@ -57,6 +57,7 @@ export interface Complaint {
   priority: ComplaintPriority;
   status: ComplaintStatus;
   createdAt: string;
+  resolvedAt?: string;
 }
 
 export interface Notice {

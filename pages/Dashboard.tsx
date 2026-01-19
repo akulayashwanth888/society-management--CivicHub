@@ -57,10 +57,12 @@ const ResidentOverview: React.FC = () => {
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      c.status === ComplaintStatus.OPEN ? 'bg-red-50 text-red-600' : 
+                      c.status === ComplaintStatus.OPEN ? 'bg-rose-50 text-rose-600' : 
                       c.status === ComplaintStatus.IN_PROGRESS ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
                     }`}>
-                      {c.status}
+                      {c.status === ComplaintStatus.OPEN ? 'PENDING' : 
+                       c.status === ComplaintStatus.RESOLVED ? 'SOLVED' : 
+                       'IN PROGRESS'}
                     </span>
                     <span className="text-[10px] text-slate-400 mt-1">{new Date(c.createdAt).toLocaleDateString()}</span>
                   </div>
@@ -80,7 +82,7 @@ const ResidentOverview: React.FC = () => {
 };
 
 const AdminOverview: React.FC = () => {
-  const { complaints, notices, residents, visitors } = useApp();
+  const { complaints, notices, residents, visitors, updateComplaintStatus } = useApp();
   
   return (
     <div className="space-y-8">
@@ -100,6 +102,7 @@ const AdminOverview: React.FC = () => {
           <table className="w-full text-left">
             <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
               <tr>
+                <th className="px-6 py-4">Flat / Bldg</th>
                 <th className="px-6 py-4">Resident</th>
                 <th className="px-6 py-4">Title</th>
                 <th className="px-6 py-4">Priority</th>
@@ -111,10 +114,17 @@ const AdminOverview: React.FC = () => {
               {complaints.map(c => (
                 <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4">
-                    <div>
-                      <p className="font-bold text-slate-800">{c.userName}</p>
-                      <p className="text-xs text-slate-400">Unit: {c.unitNumber}</p>
-                    </div>
+                    <span className="inline-block bg-slate-100 text-slate-700 font-bold px-3 py-1.5 rounded-lg border border-slate-200">
+                        {c.unitNumber || 'N/A'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                     <div className="flex items-center">
+                        <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] text-indigo-700 font-bold mr-2">
+                            {c.userName ? c.userName.charAt(0) : '?'}
+                        </div>
+                        <span className="font-bold text-slate-800">{c.userName || 'Unknown'}</span>
+                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">{c.title}</td>
                   <td className="px-6 py-4">
@@ -130,11 +140,31 @@ const AdminOverview: React.FC = () => {
                       c.status === ComplaintStatus.OPEN ? 'bg-rose-50 text-rose-600' : 
                       c.status === ComplaintStatus.IN_PROGRESS ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
                     }`}>
-                      {c.status}
+                      {c.status === ComplaintStatus.OPEN ? 'PENDING' : 
+                       c.status === ComplaintStatus.RESOLVED ? 'SOLVED' : 
+                       'IN PROGRESS'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <button className="p-2 text-slate-400 hover:text-indigo-600">👁️</button>
+                    {c.status !== ComplaintStatus.RESOLVED && (
+                        <div className="flex space-x-2">
+                           <button 
+                               onClick={() => updateComplaintStatus(c.id, ComplaintStatus.IN_PROGRESS)}
+                               className="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100" title="Mark In Progress"
+                           >
+                               ⏳
+                           </button>
+                           <button 
+                               onClick={() => updateComplaintStatus(c.id, ComplaintStatus.RESOLVED)}
+                               className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100" title="Mark Resolved"
+                           >
+                               ✅
+                           </button>
+                        </div>
+                    )}
+                    {c.status === ComplaintStatus.RESOLVED && (
+                        <span className="text-xs font-bold text-emerald-600">✓ Solved</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -155,11 +185,9 @@ const ProfileView: React.FC = () => {
       <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm overflow-hidden relative">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-50"></div>
         <div className="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-8 relative z-10">
-          <img 
-            src={user?.avatar} 
-            alt={user?.name} 
-            className="w-32 h-32 rounded-[2rem] border-4 border-white shadow-xl object-cover" 
-          />
+          <div className="w-32 h-32 rounded-[2rem] border-4 border-white shadow-xl bg-indigo-100 flex items-center justify-center text-4xl text-indigo-600 font-bold">
+            {user?.name.charAt(0).toUpperCase()}
+          </div>
           <div className="text-center md:text-left flex-1">
             <div className="flex flex-col md:flex-row md:items-center md:space-x-3 mb-2">
               <h2 className="text-3xl font-black text-slate-900 tracking-tight">{user?.name}</h2>
@@ -168,24 +196,17 @@ const ProfileView: React.FC = () => {
               </span>
             </div>
             <p className="text-slate-500 font-medium mb-4">{user?.email}</p>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Unit Number</p>
-                <p className="text-lg font-bold text-slate-800">{user?.unitNumber || 'Admin'}</p>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Phone</p>
-                <p className="text-lg font-bold text-slate-800">{user?.phone}</p>
-              </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Status</p>
                 <p className="text-lg font-bold text-emerald-600">Active</p>
               </div>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                 <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Address</p>
+                 <p className="text-lg font-bold text-slate-800">{user?.unitNumber || 'N/A'}</p>
+              </div>
             </div>
           </div>
-          <button className="bg-white border-2 border-slate-100 text-slate-600 px-6 py-3 rounded-2xl font-bold hover:bg-slate-50 transition-all shadow-sm">
-            Edit Profile
-          </button>
         </div>
       </div>
 
@@ -210,7 +231,7 @@ const ProfileView: React.FC = () => {
                   <th className="px-8 py-5">Category</th>
                   <th className="px-8 py-5">Priority</th>
                   <th className="px-8 py-5">Status</th>
-                  <th className="px-8 py-5 text-right">Filed On</th>
+                  <th className="px-8 py-5 text-right">Timelines</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -219,6 +240,7 @@ const ProfileView: React.FC = () => {
                     <td className="px-8 py-6">
                       <p className="font-bold text-slate-800 mb-1">{c.title}</p>
                       <p className="text-xs text-slate-500 line-clamp-1 max-w-xs">{c.description}</p>
+                      <p className="text-[10px] text-indigo-600 font-bold mt-1">Unit: {c.unitNumber}</p>
                     </td>
                     <td className="px-8 py-6">
                       <span className="text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
@@ -242,11 +264,20 @@ const ProfileView: React.FC = () => {
                           c.status === ComplaintStatus.OPEN ? 'bg-rose-600' : 
                           c.status === ComplaintStatus.IN_PROGRESS ? 'bg-amber-600' : 'bg-emerald-600'
                         }`}></span>
-                        {c.status.replace('_', ' ')}
+                        {c.status === ComplaintStatus.OPEN ? 'PENDING' : 
+                         c.status === ComplaintStatus.RESOLVED ? 'SOLVED' : 
+                         'IN PROGRESS'}
                       </span>
                     </td>
-                    <td className="px-8 py-6 text-right text-xs font-bold text-slate-400">
-                      {new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <td className="px-8 py-6 text-right">
+                      <p className="text-xs font-bold text-slate-400">
+                        Filed: {new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </p>
+                      {c.resolvedAt && (
+                         <p className="text-xs font-bold text-emerald-600 mt-1">
+                            Resolved: {new Date(c.resolvedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                         </p>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -266,8 +297,15 @@ const ProfileView: React.FC = () => {
 };
 
 const ComplaintForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { addComplaint } = useApp();
-    const [formData, setFormData] = useState({ title: '', category: 'General', priority: ComplaintPriority.MEDIUM, description: '' });
+    const { addComplaint, user } = useApp();
+    // Pre-fill unit number if available in user profile
+    const [formData, setFormData] = useState({ 
+        title: '', 
+        category: 'General', 
+        priority: ComplaintPriority.MEDIUM, 
+        description: '',
+        unitNumber: user?.unitNumber || '' 
+    });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -294,6 +332,19 @@ const ComplaintForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                 placeholder="E.g. Leaking faucet"
                             />
                         </div>
+                        
+                        <div className="col-span-2">
+                             <label className="block text-sm font-bold text-slate-700 mb-2">Flat / Building Number <span className="text-red-500">*</span></label>
+                             <input 
+                                 required
+                                 value={formData.unitNumber}
+                                 onChange={e => setFormData({ ...formData, unitNumber: e.target.value })}
+                                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" 
+                                 placeholder="E.g. B-404"
+                             />
+                             <p className="text-xs text-slate-400 mt-1">Required for maintenance team to locate you.</p>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-2">Category</label>
                             <select 
@@ -372,10 +423,11 @@ const ComplaintManager: React.FC = () => {
                     <table className="w-full text-left">
                         <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
                             <tr>
+                                <th className="px-6 py-4">Flat / Bldg</th>
+                                <th className="px-6 py-4">Resident</th>
                                 <th className="px-6 py-4">Subject</th>
-                                <th className="px-6 py-4">Unit</th>
                                 <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4">Date</th>
+                                <th className="px-6 py-4">Timeline</th>
                                 {isAdmin && <th className="px-6 py-4">Action</th>}
                             </tr>
                         </thead>
@@ -383,35 +435,73 @@ const ComplaintManager: React.FC = () => {
                             {displayComplaints.map(c => (
                                 <tr key={c.id}>
                                     <td className="px-6 py-4">
+                                        <span className="inline-block bg-slate-100 text-slate-700 font-bold px-3 py-1.5 rounded-lg border border-slate-200">
+                                            {c.unitNumber || 'N/A'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                       <div className="flex items-center">
+                                          <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] text-indigo-700 font-bold mr-2">
+                                              {c.userName ? c.userName.charAt(0) : '?'}
+                                          </div>
+                                          <span className="font-bold text-slate-800 text-sm">{c.userName || 'Unknown'}</span>
+                                       </div>
+                                    </td>
+                                    <td className="px-6 py-4">
                                         <p className="font-bold text-slate-800">{c.title}</p>
                                         <p className="text-xs text-slate-400 truncate max-w-xs">{c.description}</p>
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-slate-600">{c.unitNumber}</td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
                                             c.status === ComplaintStatus.OPEN ? 'bg-rose-50 text-rose-600' : 
                                             c.status === ComplaintStatus.IN_PROGRESS ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
                                         }`}>
-                                            {c.status}
+                                            {c.status === ComplaintStatus.OPEN ? 'PENDING' : 
+                                             c.status === ComplaintStatus.RESOLVED ? 'SOLVED' : 
+                                             'IN PROGRESS'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-400">
+                                        <div className="flex flex-col space-y-1">
+                                            <div className="flex items-center space-x-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                                                <span className="text-xs text-slate-500 font-medium">Raised:</span>
+                                                <span className="text-xs font-bold text-slate-700">{new Date(c.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                            {c.resolvedAt ? (
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                    <span className="text-xs text-slate-500 font-medium">Resolved:</span>
+                                                    <span className="text-xs font-bold text-emerald-600">{new Date(c.resolvedAt).toLocaleDateString()}</span>
+                                                </div>
+                                            ) : (
+                                                 <div className="flex items-center space-x-2 opacity-50">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-200"></span>
+                                                    <span className="text-xs text-slate-400 italic">Resolution pending</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
                                     {isAdmin && (
                                         <td className="px-6 py-4">
-                                            <div className="flex space-x-2">
-                                                <button 
-                                                    onClick={() => updateComplaintStatus(c.id, ComplaintStatus.IN_PROGRESS)}
-                                                    className="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100" title="Mark In Progress"
-                                                >
-                                                    ⏳
-                                                </button>
-                                                <button 
-                                                    onClick={() => updateComplaintStatus(c.id, ComplaintStatus.RESOLVED)}
-                                                    className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100" title="Resolve"
-                                                >
-                                                    ✅
-                                                </button>
-                                            </div>
+                                            {c.status !== ComplaintStatus.RESOLVED ? (
+                                                <div className="flex space-x-2">
+                                                    <button 
+                                                        onClick={() => updateComplaintStatus(c.id, ComplaintStatus.IN_PROGRESS)}
+                                                        className="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100" title="Mark In Progress"
+                                                    >
+                                                        ⏳
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => updateComplaintStatus(c.id, ComplaintStatus.RESOLVED)}
+                                                        className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100" title="Resolve"
+                                                    >
+                                                        ✅
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-emerald-600 font-bold text-xs">✓ Solved</span>
+                                            )}
                                         </td>
                                     )}
                                 </tr>
@@ -544,7 +634,7 @@ const VisitorForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         addVisitor({
             ...formData,
             residentName: resident?.name || 'Unknown',
-            unitNumber: resident?.unitNumber || 'N/A'
+            unitNumber: 'N/A' // Defaulted
         });
         onClose();
     };
@@ -600,7 +690,7 @@ const VisitorForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
                                     {residents.map(r => (
-                                        <option key={r.id} value={r.id}>{r.name} ({r.unitNumber})</option>
+                                        <option key={r.id} value={r.id}>{r.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -624,8 +714,7 @@ const VisitorManager: React.FC = () => {
 
     const filteredVisitors = useMemo(() => {
         return visitors.filter(v => {
-            const matchesSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                v.unitNumber.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = filterStatus === 'ALL' || v.status === filterStatus;
             return matchesSearch && matchesStatus;
         });
@@ -675,7 +764,7 @@ const VisitorManager: React.FC = () => {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
                     <input 
                         type="text"
-                        placeholder="Search by visitor name or unit number..."
+                        placeholder="Search by visitor name..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-12 pr-4 py-3 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
@@ -737,7 +826,6 @@ const VisitorManager: React.FC = () => {
                                     <td className="px-8 py-6">
                                         <div>
                                             <p className="text-sm font-bold text-slate-800">{v.residentName}</p>
-                                            <p className="text-xs font-black text-indigo-500 uppercase tracking-tight">Unit {v.unitNumber}</p>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6">
@@ -793,6 +881,86 @@ const VisitorManager: React.FC = () => {
     );
 };
 
+const PaymentManager: React.FC = () => {
+    const { payments, user, payBill } = useApp();
+    const isAdmin = user?.role === UserRole.ADMIN;
+    
+    // Admin sees all, Resident sees only theirs
+    const displayPayments = isAdmin ? payments : payments.filter(p => p.userId === user?.id);
+
+    const stats = {
+        collected: payments.filter(p => p.status === PaymentStatus.PAID).reduce((a, b) => a + b.amount, 0),
+        pending: payments.filter(p => p.status !== PaymentStatus.PAID).reduce((a, b) => a + b.amount, 0)
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800">Billing & Payments</h2>
+                    <p className="text-slate-500">Track monthly maintenance dues and invoices</p>
+                </div>
+                <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl font-bold border border-emerald-100 flex items-center">
+                   <span className="text-xl mr-2">💰</span> 
+                   <span>{isAdmin ? 'Total Collected' : 'Total Paid'}: ${isAdmin ? stats.collected : displayPayments.filter(p => p.status === PaymentStatus.PAID).reduce((a,b) => a+b.amount, 0)}</span>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                            <tr>
+                                <th className="px-6 py-4">Invoice For</th>
+                                <th className="px-6 py-4">Amount</th>
+                                <th className="px-6 py-4">Due Date</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {displayPayments.map(p => (
+                                <tr key={p.id}>
+                                    <td className="px-6 py-4">
+                                        <p className="font-bold text-slate-800">{p.month}</p>
+                                        {isAdmin && <p className="text-xs text-slate-400">{p.userName}</p>}
+                                    </td>
+                                    <td className="px-6 py-4 font-bold text-slate-800">${p.amount}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-500">{new Date(p.dueDate).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                                            p.status === PaymentStatus.PAID ? 'bg-emerald-50 text-emerald-600' : 
+                                            p.status === PaymentStatus.OVERDUE ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
+                                        }`}>
+                                            {p.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        {p.status !== PaymentStatus.PAID && !isAdmin && (
+                                            <button 
+                                                onClick={() => payBill(p.id)}
+                                                className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm"
+                                            >
+                                                Pay Now
+                                            </button>
+                                        )}
+                                        {p.status === PaymentStatus.PAID && (
+                                            <span className="text-emerald-600 text-sm font-bold">✓ Paid</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {displayPayments.length === 0 && (
+                    <div className="p-12 text-center text-slate-400">No payment records found.</div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 export const Dashboard: React.FC = () => {
   const { user } = useApp();
   const [activeTab, setActiveTab] = useState(user?.role === UserRole.ADMIN ? 'overview' : 'dashboard');
@@ -812,7 +980,7 @@ export const Dashboard: React.FC = () => {
         return <div className="text-center py-20 text-slate-500 font-medium">Resident Directory Management System - Coming Soon</div>;
       case 'payments':
       case 'dues':
-        return <div className="text-center py-20 text-slate-500 font-medium">Digital Billing and Payments - Coming Soon</div>;
+        return <PaymentManager />;
       case 'profile':
         return <ProfileView />;
       default:

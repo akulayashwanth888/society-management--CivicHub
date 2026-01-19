@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -5,6 +6,7 @@ import React, {
   useEffect,
   ReactNode
 } from "react";
+import { supabase } from "./supabaseClient";
 
 import {
   User,
@@ -16,28 +18,24 @@ import {
   ComplaintStatus,
   ComplaintPriority,
   Notification,
-  Visitor
+  Visitor,
+  PaymentStatus
 } from "./types";
 
-import {
-  MOCK_ADMIN,
-  MOCK_RESIDENT,
-  INITIAL_COMPLAINTS,
-  INITIAL_NOTICES,
-  INITIAL_PAYMENTS
-} from "./constants";
-
-/* =========================
-   CONFIG
-========================= */
-const API_URL = "https://civichub-society-management-pro.onrender.com";
+import { 
+  MOCK_ADMIN, 
+  MOCK_RESIDENT, 
+  INITIAL_COMPLAINTS, 
+  INITIAL_NOTICES, 
+  INITIAL_PAYMENTS 
+} from './constants';
 
 /* =========================
    CONTEXT TYPE
 ========================= */
 interface AppContextType extends AppState {
-  // Fixed: Updated login signature to accept 4 arguments as used in AuthPage.tsx
-  login: (email: string, role: UserRole, unitNumber?: string, name?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, role: UserRole, name: string, unitNumber: string) => Promise<void>;
   logout: () => void;
   addComplaint: (complaint: Partial<Complaint>) => void;
   updateComplaintStatus: (id: string, status: ComplaintStatus) => void;
@@ -47,173 +45,369 @@ interface AppContextType extends AppState {
   markAllNotificationsAsRead: () => void;
   addVisitor: (visitor: Partial<Visitor>) => void;
   updateVisitorExit: (id: string) => void;
+  payBill: (id: string) => Promise<void>;
   residents: User[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 /* =========================
-   INITIAL DATA
-========================= */
-const INITIAL_VISITORS: Visitor[] = [
-  {
-    id: "v1",
-    name: "Michael Scott",
-    phone: "555-0199",
-    purpose: "Delivery",
-    residentId: "res-1",
-    residentName: "John Doe",
-    unitNumber: "B-402",
-    entryTime: new Date(Date.now() - 3600000).toISOString(),
-    status: "IN"
-  }
-];
-
-/* =========================
    PROVIDER
 ========================= */
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [complaints, setComplaints] = useState<Complaint[]>(INITIAL_COMPLAINTS);
-  const [notices, setNotices] = useState<Notice[]>(INITIAL_NOTICES);
-  const [payments] = useState<Payment[]>(INITIAL_PAYMENTS);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [visitors, setVisitors] = useState<Visitor[]>(INITIAL_VISITORS);
-  const [residents] = useState<User[]>([
-    MOCK_RESIDENT,
-    { ...MOCK_RESIDENT, id: "res-2", name: "Alice Smith", unitNumber: "A-101" }
-  ]);
+  const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const [residents, setResidents] = useState<User[]>([]);
 
-  /* =========================
-     LOGIN (REAL BACKEND)
-  ========================= */
-  // Fixed: Updated login implementation to match the new signature and include name/unitNumber
-  const login = async (email: string, role: UserRole, unitNumber?: string, name?: string) => {
-    const res = await fetch(`${API_URL}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, role, unitNumber, name })
+  // Check active session on mount
+  useEffect(() => {
+    const initSession = async () => {
+        try {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (error) throw error;
+            if (session?.user) {
+                await fetchProfile(session.user.id, session.user.email!);
+            }
+        } catch (err) {
+            console.warn("Session check failed (likely offline/mock mode needed):", err);
+            // We stay logged out, user must login manually to trigger mock fallback
+        }
+    };
+    
+    initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchProfile(session.user.id, session.user.email!);
+      } else {
+        // Only clear if we aren't in a manually set mock session (which has no supabase session)
+        // However, Supabase auth change fires on init. 
+        // We'll rely on the user state to persist if set manually.
+      }
     });
 
-    if (!res.ok) {
-      alert("Login failed");
-      return;
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchProfile = async (userId: string, email: string) => {
+    try {
+        const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+        if (error) throw error;
+
+        if (data) {
+            setUser({
+                id: data.id,
+                name: data.name,
+                email: data.email,
+                role: data.role as UserRole,
+                unitNumber: data.unitNumber
+            });
+        }
+    } catch (error: any) {
+        console.error("Profile fetch failed, checking mocks...", error);
+        
+        // Fallback to Mock Data if network fails
+        const mockUser = [MOCK_ADMIN, MOCK_RESIDENT].find(u => u.email === email);
+        if (mockUser) {
+            setUser(mockUser);
+            // If we are falling back to mock user, we should also load mock data
+            loadMockData();
+        } else if (error.code === 'PGRST116') {
+             // Auto-healing for missing profile in real DB
+             const name = email.split('@')[0];
+             await supabase.from('profiles').insert([{
+                 id: userId,
+                 email,
+                 name: name,
+                 role: 'RESIDENT',
+                 unitNumber: 'N/A'
+             }]);
+             // Retry once
+             fetchProfile(userId, email);
+        }
+    }
+  };
+
+  const loadMockData = () => {
+    setComplaints(INITIAL_COMPLAINTS);
+    setNotices(INITIAL_NOTICES);
+    setPayments(INITIAL_PAYMENTS);
+    setResidents([MOCK_ADMIN, MOCK_RESIDENT]);
+    setVisitors([
+        {
+            id: 'v1',
+            name: 'Michael Scott',
+            phone: '555-0199',
+            purpose: 'Delivery',
+            residentId: 'res-1',
+            residentName: 'John Doe',
+            unitNumber: 'B-402',
+            entryTime: new Date(Date.now() - 3600000).toISOString(),
+            status: 'IN'
+        }
+    ]);
+  };
+
+  // Fetch Data when User logs in
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
+
+  const fetchData = async () => {
+    // If we are using a mock user ID, skip real fetch
+    if (user?.id === MOCK_ADMIN.id || user?.id === MOCK_RESIDENT.id) {
+        loadMockData();
+        return;
     }
 
-    const data = await res.json();
+    try {
+      const [resComplaints, resNotices, resVisitors, resResidents, resPayments] = await Promise.all([
+        supabase.from('complaints').select('*').order('createdAt', { ascending: false }),
+        supabase.from('notices').select('*').order('createdAt', { ascending: false }),
+        supabase.from('visitors').select('*').order('entryTime', { ascending: false }),
+        supabase.from('profiles').select('*').eq('role', 'RESIDENT'),
+        supabase.from('payments').select('*')
+      ]);
 
-    // Save token
-    localStorage.setItem("token", data.token);
+      if (resComplaints.data) setComplaints(resComplaints.data as any);
+      if (resNotices.data) setNotices(resNotices.data as any);
+      if (resVisitors.data) setVisitors(resVisitors.data as any);
+      if (resResidents.data) setResidents(resResidents.data as any);
+      if (resPayments.data) setPayments(resPayments.data as any);
 
-    // Decode token payload
-    const payload = JSON.parse(atob(data.token.split(".")[1]));
-
-    setUser({
-      id: payload.id,
-      role: payload.role,
-      name: name || (payload.role === "admin" ? "Admin" : "Resident"),
-      email,
-      unitNumber: unitNumber || payload.unitNumber
-    });
+    } catch (error) {
+      console.error("Failed to fetch data, using fallback:", error);
+      loadMockData();
+    }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
+  /* =========================
+     AUTH
+  ========================= */
+  const login = async (email: string, password: string) => {
+    try {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+        if (error) throw error;
+    } catch (error: any) {
+        console.warn("Supabase Login failed, attempting mock login:", error.message);
+        
+        // Mock Fallback
+        const mockUser = [MOCK_ADMIN, MOCK_RESIDENT].find(u => u.email === email);
+        if (mockUser) {
+            setUser(mockUser);
+            loadMockData();
+            return;
+        }
+
+        alert("Login failed: " + error.message);
+        throw error;
+    }
+  };
+
+  const register = async (email: string, password: string, role: UserRole, name: string, unitNumber: string) => {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        const { error: profileError } = await supabase.from('profiles').insert([{
+          id: authData.user.id,
+          email,
+          name,
+          role,
+          unitNumber
+        }]);
+        
+        if (profileError) {
+           console.error("Profile creation failed", profileError);
+        }
+        
+        alert("Account created! Please log in.");
+        if (authData.session) {
+            await fetchProfile(authData.user.id, email);
+        }
+      }
+    } catch (error: any) {
+      console.error("Registration Error:", error);
+      alert(error.message || "Registration failed");
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+        await supabase.auth.signOut();
+    } catch(e) { console.log('Signout local only'); }
     setUser(null);
+    setComplaints([]);
+    setNotices([]);
+    setVisitors([]);
+    setResidents([]);
   };
 
   /* =========================
-     NOTIFICATIONS
+     NOTIFICATIONS (Local State)
   ========================= */
-  const createNotification = (notif: Partial<Notification>) => {
-    const newNotif: Notification = {
-      id: `notif-${Date.now()}`,
-      userId: notif.userId || "",
-      title: notif.title || "",
-      message: notif.message || "",
-      type: notif.type || "SYSTEM",
-      isRead: false,
-      createdAt: new Date().toISOString(),
-      targetTab: notif.targetTab
-    };
-    setNotifications(prev => [newNotif, ...prev]);
+  const markNotificationAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
   /* =========================
-     COMPLAINTS (TEMP MOCK)
-     ⚠️ Backend integration next step
+     COMPLAINTS
   ========================= */
-  const addComplaint = (data: Partial<Complaint>) => {
+  const addComplaint = async (data: Partial<Complaint>) => {
     if (!user) return;
 
-    const complaint: Complaint = {
-      id: `c-${Date.now()}`,
+    const payload = {
       userId: user.id,
       userName: user.name,
-      unitNumber: user.unitNumber || "N/A",
-      title: data.title || "",
-      description: data.description || "",
+      unitNumber: data.unitNumber || user.unitNumber || "N/A", 
+      title: data.title,
+      description: data.description,
       category: data.category || "General",
-      // Fixed: Replaced string literal "MEDIUM" with ComplaintPriority.MEDIUM to match enum type
       priority: data.priority || ComplaintPriority.MEDIUM,
-      status: ComplaintStatus.OPEN,
-      createdAt: new Date().toISOString()
+      status: 'OPEN'
     };
 
-    setComplaints(prev => [complaint, ...prev]);
+    // Optimistic Update
+    const tempId = `temp-${Date.now()}`;
+    const optimisticComplaint = { ...payload, id: tempId, createdAt: new Date().toISOString() } as Complaint;
+    setComplaints(prev => [optimisticComplaint, ...prev]);
+
+    setNotifications(prev => [{
+        id: `notif-${Date.now()}`,
+        userId: user.id,
+        title: 'Complaint Raised',
+        message: `Ticket has been created successfully for ${payload.unitNumber}.`,
+        type: 'COMPLAINT',
+        isRead: false,
+        createdAt: new Date().toISOString()
+    }, ...prev]);
+
+    try {
+        const { data: saved, error } = await supabase.from('complaints').insert([payload]).select().single();
+        if (error) throw error;
+        // Replace temp with real
+        setComplaints(prev => prev.map(c => c.id === tempId ? saved as any : c));
+    } catch (e) {
+        console.warn("Backend add failed, keeping optimistic data");
+    }
   };
 
-  const updateComplaintStatus = (id: string, status: ComplaintStatus) => {
-    setComplaints(prev =>
-      prev.map(c => (c.id === id ? { ...c, status } : c))
-    );
+  const updateComplaintStatus = async (id: string, status: ComplaintStatus) => {
+    const updates: any = { status };
+    if (status === ComplaintStatus.RESOLVED) {
+        updates.resolvedAt = new Date().toISOString();
+    }
+
+    setComplaints(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)));
+
+    try {
+        await supabase.from('complaints').update(updates).eq('id', id);
+    } catch (e) {
+        console.warn("Backend update failed");
+    }
   };
 
   /* =========================
      NOTICES
   ========================= */
-  const addNotice = (notice: Partial<Notice>) => {
-    const n: Notice = {
-      id: `n-${Date.now()}`,
-      title: notice.title || "",
-      content: notice.content || "",
-      category: notice.category || "General",
-      postedBy: user?.name || "Admin",
-      createdAt: new Date().toISOString()
+  const addNotice = async (notice: Partial<Notice>) => {
+    if (!user) return;
+    const payload = {
+       title: notice.title,
+       content: notice.content,
+       category: notice.category || "General",
+       postedBy: user.name
     };
-    setNotices(prev => [n, ...prev]);
+
+    const tempId = `temp-notice-${Date.now()}`;
+    const optimisticNotice = { ...payload, id: tempId, createdAt: new Date().toISOString() } as Notice;
+    setNotices(prev => [optimisticNotice, ...prev]);
+
+    try {
+        const { data: saved, error } = await supabase.from('notices').insert([payload]).select().single();
+        if (!error && saved) {
+            setNotices(prev => prev.map(n => n.id === tempId ? saved as any : n));
+        }
+    } catch (e) { console.warn("Backend notice add failed"); }
   };
 
-  const deleteNotice = (id: string) => {
+  const deleteNotice = async (id: string) => {
     setNotices(prev => prev.filter(n => n.id !== id));
+    try {
+        await supabase.from('notices').delete().eq('id', id);
+    } catch(e) { console.warn("Backend notice delete failed"); }
   };
 
   /* =========================
      VISITORS
   ========================= */
-  const addVisitor = (v: Partial<Visitor>) => {
-    const visitor: Visitor = {
-      id: `v-${Date.now()}`,
-      name: v.name || "",
-      phone: v.phone || "",
-      purpose: v.purpose || "",
-      residentId: v.residentId || "",
-      residentName: v.residentName || "",
-      unitNumber: v.unitNumber || "",
-      entryTime: new Date().toISOString(),
-      status: "IN"
-    };
-    setVisitors(prev => [visitor, ...prev]);
+  const addVisitor = async (v: Partial<Visitor>) => {
+    const tempId = `temp-visitor-${Date.now()}`;
+    const optimisticVisitor = { ...v, id: tempId, status: 'IN', entryTime: new Date().toISOString() } as Visitor;
+    setVisitors(prev => [optimisticVisitor, ...prev]);
+
+    try {
+        const { data: saved, error } = await supabase.from('visitors').insert([v]).select().single();
+        if (!error && saved) {
+            setVisitors(prev => prev.map(vis => vis.id === tempId ? saved as any : vis));
+        }
+    } catch(e) { console.warn("Backend visitor add failed"); }
   };
 
-  const updateVisitorExit = (id: string) => {
-    setVisitors(prev =>
-      prev.map(v =>
-        v.id === id
-          ? { ...v, status: "OUT", exitTime: new Date().toISOString() }
-          : v
-      )
-    );
+  const updateVisitorExit = async (id: string) => {
+    const updates = { status: 'OUT', exitTime: new Date().toISOString() };
+    setVisitors(prev => prev.map(v => v.id === id ? { ...v, ...updates } as any : v));
+
+    try {
+        await supabase.from('visitors').update(updates).eq('id', id);
+    } catch(e) { console.warn("Backend visitor exit failed"); }
+  };
+
+  /* =========================
+     PAYMENTS
+  ========================= */
+  const payBill = async (id: string) => {
+    setPayments(prev => prev.map(p => p.id === id ? { ...p, status: 'PAID' as PaymentStatus } : p));
+    
+    if (user) {
+        setNotifications(prev => [{
+            id: `notif-${Date.now()}`,
+            userId: user.id,
+            title: 'Payment Successful',
+            message: `Thank you! Your payment has been marked as received.`,
+            type: 'PAYMENT',
+            isRead: false,
+            createdAt: new Date().toISOString()
+        }, ...prev]);
+    }
+
+    try {
+        await supabase.from('payments').update({ status: 'PAID' }).eq('id', id);
+    } catch(e) { console.warn("Backend payment update failed"); }
   };
 
   /* =========================
@@ -230,15 +424,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         notifications,
         visitors,
         login,
+        register,
         logout,
         addComplaint,
         updateComplaintStatus,
         addNotice,
         deleteNotice,
-        markNotificationAsRead: () => {},
-        markAllNotificationsAsRead: () => {},
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
         addVisitor,
-        updateVisitorExit
+        updateVisitorExit,
+        payBill
       }}
     >
       {children}

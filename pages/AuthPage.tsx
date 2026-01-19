@@ -7,14 +7,24 @@ export const AuthPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState<UserRole>(UserRole.RESIDENT);
   const [name, setName] = useState('');
-  const [unitNumber, setUnitNumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useApp();
+  const [unitNumber, setUnitNumber] = useState('');
+  const { login, register } = useApp();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, role, role === UserRole.RESIDENT ? unitNumber : undefined, name);
+    try {
+        if (!isLogin) {
+            // REGISTER
+            await register(email, password, role, name, unitNumber);
+        } else {
+            // LOGIN
+            await login(email, password);
+        }
+    } catch (err: any) {
+        // Errors are alerted in AppContext
+    }
   };
 
   return (
@@ -43,32 +53,31 @@ export const AuthPage: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {!isLogin && role === UserRole.RESIDENT && (
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
-                <input 
-                  type="text" 
-                  required
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" 
-                  placeholder="John Doe"
-                />
-              </div>
-            )}
-            
-            {role === UserRole.RESIDENT && (
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Flat / House Number</label>
-                <input 
-                  type="text" 
-                  required
-                  value={unitNumber}
-                  onChange={e => setUnitNumber(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" 
-                  placeholder="e.g. B-402"
-                />
-              </div>
+            {!isLogin && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" 
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Flat / Building Number</label>
+                  <input 
+                    type="text" 
+                    required={role === UserRole.RESIDENT}
+                    value={unitNumber}
+                    onChange={e => setUnitNumber(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" 
+                    placeholder="e.g. A-102 or Green Villa 4"
+                  />
+                </div>
+              </>
             )}
 
             <div>
